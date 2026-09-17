@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Field Log — Property Inspection Dictation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14171A;
+    --panel:#1E2226;
+    --panel-raised:#252A2F;
+    --paper:#F5F3EE;
+    --amber:#F5A623;
+    --amber-dim:#8a6416;
+    --green:#3ECF8E;
+    --red:#E5484D;
+    --text:#EDEEF0;
+    --text-muted:#8A9199;
+    --hairline:#33383E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{max-width:520px;margin:0 auto;padding:0 0 48px;}
+
+  /* Header */
+  .header{
+    padding:20px 18px 16px;
+    border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;background:var(--ink);z-index:20;
+  }
+  .brand{
+    display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;
+  }
+  .brand h1{
+    font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:0.04em;
+    text-transform:uppercase;margin:0;color:var(--text);
+  }
+  .brand h1 span{color:var(--amber);}
+  .status-pill{
+    display:flex;align-items:center;gap:6px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.05em;
+    padding:5px 10px;border-radius:20px;background:var(--panel-raised);
+    text-transform:uppercase;color:var(--text-muted);border:1px solid var(--hairline);
+  }
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);flex:none;}
+  .status-pill.live{color:var(--green);border-color:rgba(62,207,142,0.3);}
+  .status-pill.live .status-dot{background:var(--green);box-shadow:0 0 0 0 rgba(62,207,142,0.6);animation:pulse 1.6s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(62,207,142,0.5);}
+    70%{box-shadow:0 0 0 8px rgba(62,207,142,0);}
+    100%{box-shadow:0 0 0 0 rgba(62,207,142,0);}
+  }
+  .field-row{display:flex;gap:8px;}
+  .field{flex:1;}
+  .field label{
+    display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;
+    color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;
+  }
+  .field input{
+    width:100%;background:var(--panel);border:1px solid var(--hairline);color:var(--text);
+    padding:9px 10px;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;
+  }
+  .field input:focus{outline:none;border-color:var(--amber);}
+  .field.small{max-width:110px;}
+  .room-row{margin-top:12px;}
+  .room-row label{
+    display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.08em;
+    color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;
+  }
+  .room-controls{display:flex;gap:8px;}
+  .room-indicator{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--amber-dim);color:var(--amber);
+    padding:9px 12px;border-radius:6px;font-family:'Oswald',sans-serif;font-size:14px;
+    letter-spacing:0.02em;text-transform:uppercase;
+  }
+  .room-indicator-edit{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-muted);
+    text-transform:uppercase;letter-spacing:0.05em;
+  }
+
+  /* Camera stage */
+  .stage{
+    margin:16px 18px 0;border-radius:10px;overflow:hidden;position:relative;
+    background:#000;aspect-ratio:4/3;border:1px solid var(--hairline);
+  }
+  .stage video{width:100%;height:100%;object-fit:cover;display:block;}
+  .stage-empty{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;color:var(--text-muted);padding:24px;text-align:center;
+  }
+  .stage-empty svg{opacity:0.5;}
+  .stage-empty p{font-size:13px;margin:0;line-height:1.5;}
+  .capture-flash{
+    position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;
+  }
+  .capture-flash.flash{animation:flash 320ms ease-out;}
+  @keyframes flash{0%{opacity:0.85;}100%{opacity:0;}}
+  .trigger-banner{
+    position:absolute;bottom:0;left:0;right:0;padding:8px 12px;
+    background:linear-gradient(transparent,rgba(0,0,0,0.75) 40%);
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;
+    display:flex;align-items:center;gap:6px;
+  }
+  .trigger-banner b{color:var(--amber);font-weight:600;}
+
+  /* Transcript strip */
+  .note-input{
+    display:block;width:calc(100% - 36px);margin:10px 18px 0;min-height:64px;padding:10px 12px;
+    background:var(--panel);border:1px solid var(--hairline);border-radius:8px;font-size:14px;line-height:1.5;
+    color:var(--text);font-family:'Inter',sans-serif;resize:vertical;
+  }
+  .note-input::placeholder{color:var(--text-muted);font-style:italic;}
+  .note-input:focus{outline:none;border-color:var(--amber);}
+  .note-input.cleared{animation:clearFlash 400ms ease-out;}
+  @keyframes clearFlash{
+    0%{background:rgba(229,72,77,0.35);border-color:var(--red);}
+    100%{background:var(--panel);border-color:var(--hairline);}
+  }
+  .interim-line{
+    margin:6px 18px 0;font-size:12px;font-style:italic;color:var(--text-muted);line-height:1.4;
+  }
+
+  /* Controls */
+  .controls{display:flex;gap:10px;margin:14px 18px 0;}
+  .btn{
+    flex:1;padding:13px 14px;border-radius:8px;border:none;font-family:'Oswald',sans-serif;
+    font-size:14px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:transform 0.1s ease, opacity 0.15s;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn-primary{background:var(--amber);color:#241a05;}
+  .btn-stop{background:var(--red);color:#fff;}
+  .btn-take-photo{
+    display:flex;width:calc(100% - 36px);margin:14px 18px 0;padding:15px 14px;border-radius:8px;border:none;
+    font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;
+    cursor:pointer;align-items:center;justify-content:center;gap:10px;background:var(--green);color:#062;
+    transition:transform 0.1s ease, opacity 0.15s;
+  }
+  .btn-take-photo:active{transform:scale(0.97);}
+  .btn-take-photo:disabled{opacity:0.35;cursor:not-allowed;}
+  .btn-new-line-item{
+    display:flex;width:calc(100% - 36px);margin:10px 18px 0;padding:13px 14px;border-radius:8px;
+    border:1px solid var(--amber-dim);font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;
+    letter-spacing:0.03em;text-transform:uppercase;cursor:pointer;align-items:center;justify-content:center;
+    gap:9px;background:transparent;color:var(--amber);transition:transform 0.1s ease, opacity 0.15s;
+  }
+  .btn-new-line-item:active{transform:scale(0.97);}
+  .btn-ghost{background:var(--panel-raised);color:var(--text);border:1px solid var(--hairline);flex:0 0 auto;width:52px;}
+
+  /* Section label */
+  .section-label{
+    margin:26px 18px 10px;display:flex;align-items:baseline;justify-content:space-between;
+  }
+  .section-label h2{
+    font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--text-muted);margin:0;font-weight:600;
+  }
+  .section-label .count{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--amber);
+  }
+  .section-label-right{display:flex;align-items:center;gap:12px;}
+  .new-session-btn{
+    background:none;border:none;color:var(--text-muted);cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.05em;
+    text-transform:uppercase;text-decoration:underline;padding:2px 0;
+  }
+  .new-session-btn:hover{color:var(--red);}
+
+  /* Tickets */
+  .tickets{margin:0 18px;display:flex;flex-direction:column;gap:12px;}
+  .ticket{
+    display:flex;background:var(--panel);border:1px solid var(--hairline);border-radius:8px;overflow:hidden;
+  }
+  .ticket-stub{
+    flex:0 0 34px;background:var(--panel-raised);border-right:1px dashed var(--hairline);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--amber);writing-mode:vertical-rl;
+    letter-spacing:0.05em;
+  }
+  .ticket-photo{flex:0 0 96px;position:relative;background:#000;cursor:zoom-in;}
+  .ticket-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .ticket-photo-none{
+    display:flex;align-items:center;justify-content:center;cursor:default;
+    background:var(--panel-raised);color:var(--text-muted);font-family:'IBM Plex Mono',monospace;
+    font-size:9.5px;text-transform:uppercase;letter-spacing:0.04em;text-align:center;padding:4px;
+  }
+  .ticket-body{flex:1;padding:10px 12px;min-width:0;}
+  .ticket-meta{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;gap:8px;flex-wrap:wrap;
+  }
+  .ticket-room{
+    background:var(--panel-raised);border:1px solid var(--amber-dim);color:var(--amber);
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.03em;
+    padding:3px 7px;border-radius:5px;text-transform:uppercase;
+  }
+  .ticket-room:focus{outline:none;}
+  .ticket-estimate{
+    display:flex;align-items:center;gap:3px;background:var(--panel-raised);
+    border:1px solid var(--hairline);border-radius:5px;padding:3px 6px;
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-muted);white-space:nowrap;
+  }
+  .ticket-estimate-input{
+    width:52px;background:transparent;border:none;color:var(--text);
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:0;
+  }
+  .ticket-estimate-input:focus{outline:none;}
+  .ticket-note{
+    width:100%;background:transparent;border:none;color:var(--text);font-family:'Inter',sans-serif;
+    font-size:13px;line-height:1.45;resize:vertical;min-height:36px;padding:0;
+  }
+  .ticket-note:focus{outline:none;}
+  .ticket-note::placeholder{color:var(--text-muted);font-style:italic;}
+  .ticket-actions{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .ticket-photo-btn{
+    background:none;border:none;color:var(--amber);font-size:11px;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;letter-spacing:0.04em;text-transform:uppercase;padding:2px 4px;
+  }
+  .ticket-photo-btn:hover{color:var(--text);}
+  .ticket-del{
+    background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;letter-spacing:0.04em;text-transform:uppercase;padding:2px 4px;
+  }
+  .ticket-del:hover{color:var(--red);}
+
+  .empty-state{
+    margin:0 18px;padding:28px 18px;text-align:center;color:var(--text-muted);
+    border:1px dashed var(--hairline);border-radius:8px;font-size:13px;line-height:1.6;
+  }
+
+  /* Footer / export */
+  .export-bar{
+    margin:24px 18px 0;padding-top:18px;border-top:1px solid var(--hairline);
+  }
+  .btn-export{
+    width:100%;padding:16px;background:var(--paper);color:var(--ink);border:none;border-radius:8px;
+    font-family:'Oswald',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.04em;text-transform:uppercase;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .btn-export:disabled{opacity:0.35;cursor:not-allowed;}
+  .btn-export-secondary{
+    background:transparent;color:var(--amber);border:1px solid var(--amber-dim);margin-top:10px;
+  }
+  .export-hint{
+    text-align:center;font-size:11.5px;color:var(--text-muted);margin-top:8px;font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* Zoom overlay */
+  .zoom-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:100;display:none;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .zoom-overlay.open{display:flex;}
+  .zoom-overlay img{max-width:100%;max-height:100%;border-radius:6px;}
+
+  ::-webkit-scrollbar{width:0;height:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="brand">
+      <h1>Field <span>Log</span></h1>
+      <div class="status-pill" id="statusPill"><span class="status-dot"></span><span id="statusText">Idle</span></div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="propAddress">Property</label>
+        <input id="propAddress" type="text" placeholder="123 Maple Ave, Cleveland, OH">
+      </div>
+      <div class="field small">
+        <label for="inspectorName">Inspector</label>
+        <input id="inspectorName" type="text" placeholder="Name">
+      </div>
+    </div>
+    <div class="room-row">
+      <label>Current Room</label>
+      <div class="room-indicator" id="roomIndicator" title="Tap to set manually">
+        <span id="roomIndicatorValue">Unspecified</span>
+        <span class="room-indicator-edit">edit</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="stage-empty" id="stageEmpty">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <p>Start a session to open the camera and begin listening for<br><b style="color:var(--amber)">"take photo"</b>, <b style="color:var(--amber)">"new room [name]"</b>, <b style="color:var(--amber)">"estimate [price]"</b>, and <b style="color:var(--amber)">"scratch that"</b></p>
+    </div>
+    <div class="capture-flash" id="flash"></div>
+    <div class="trigger-banner" id="triggerBanner" style="display:none;">"take photo" to capture · "new room [name]" to switch · "estimate [price]" to add a cost · "scratch that" to undo the note</div>
+  </div>
+
+  <textarea class="note-input" id="noteInput" placeholder="Type or dictate your note here, then tap Take Photo…"></textarea>
+  <div class="interim-line" id="interimLine" style="display:none;"></div>
+
+  <button class="btn btn-take-photo" id="manualBtn" disabled>📷 Take Photo</button>
+  <button class="btn btn-new-line-item" id="newLineItemBtn">📝 New Line Item</button>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="startBtn">Start Session</button>
+    <button class="btn btn-stop" id="stopBtn" style="display:none;">End Session</button>
+    <button class="btn btn-ghost" id="undoBtn" title="Undo last capture" disabled>↩︎</button>
+  </div>
+
+  <div class="section-label">
+    <h2>Captured Entries</h2>
+    <div class="section-label-right">
+      <span class="count" id="entryCount">0</span>
+      <button class="new-session-btn" id="newSessionBtn">New Session</button>
+    </div>
+  </div>
+
+  <div id="entriesWrap">
+    <div class="empty-state" id="emptyEntries">No line items yet. Describe what you see, then say <b style="color:var(--amber)">"take photo"</b> (or tap Take Photo / New Line Item) to log it.</div>
+    <div class="tickets" id="tickets"></div>
+  </div>
+
+  <div class="export-bar">
+    <button class="btn-export" id="exportBtn" disabled>Generate PDF Report</button>
+    <button class="btn-export btn-export-secondary" id="emailBtn" disabled>Email Report to Repair My Rentals</button>
+    <button class="btn-export btn-export-secondary" id="zipBtn" disabled>Download Photos (.zip)</button>
+    <div class="export-hint" id="exportHint">Capture at least one entry to enable export</div>
+  </div>
+
+</div>
+
+<div class="zoom-overlay" id="zoomOverlay"><img id="zoomImg" src=""></div>
+<input type="file" id="ticketPhotoInput" accept="image/*" capture="environment" style="display:none;">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+  const LOGO_DATA_URL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAEOAlgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9U6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKhu7yCwtpbm5ljgt4lLySysFRFAySxPAA9TQB518Zf2h/BfwIt9Mk8V6g8EuoTCKC2to/NmK5AeUoORGmclvwAJ4rvtH1iy8QaZa6jp11De2F1Gs0FzA4eOVGGQykdQRX49/tb/E+y+Lfx68R65pVwbvRozFY2MwJKvHEu0uuf4Wfew9QQe9es/sD/H/xX4Z8b2Hw8Swu/EfhvU5GZLeHmTTD1edSTgQ93UnGTleThlcD9OK4/wCKnxX8OfBrwhc+JPE979ksITsREG6aeQ/djiT+Jzg8egJJABNdJq19Jp2mXV1FaS30sMLyJawY8yZlUkIu4gbiRgZIGTX41ftEfHLxT8cvHdzf+Ikl02Gyke3s9EbITT1BwyEHGZMj52IySMcAAUAfr98P/iDoXxQ8KWPiPw5fpqOlXi7klTgqf4kdeqsp4KnkGujr84/+Cafxc0zwx4i8ReCNVvEtH1porvTfOk2pJOgKPEM8b2XYR67COuK/RvOaAFooopgFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUVy/xM+IWl/CvwNrPinWXKafptu0zqp+aRuiRr/tMxCj3NAHD/tIftH6F+z14R+3Xu2+127DJpukq+HuHH8TH+GNeNzfgMk1+U/xH+OPjn4r315P4l8S6hfW9zIZP7OFw6WcQJ4RIQdoUdsgnjkk81S+KvxQ1z4w+ONR8T6/cGW8unIjhDEx20IJ2Qxjsqg/ick8k1yNSB77+yL+zMP2ivFuo/wBp3k2n+GtG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UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH//2Q==";
+  const LOGO_RATIO = 0.45;
+
+
+  const video = document.getElementById('video');
+  const stageEmpty = document.getElementById('stageEmpty');
+  const flash = document.getElementById('flash');
+  const triggerBanner = document.getElementById('triggerBanner');
+  const noteInput = document.getElementById('noteInput');
+  const interimLine = document.getElementById('interimLine');
+  const statusPill = document.getElementById('statusPill');
+  const statusText = document.getElementById('statusText');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const manualBtn = document.getElementById('manualBtn');
+  const newLineItemBtn = document.getElementById('newLineItemBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const newSessionBtn = document.getElementById('newSessionBtn');
+  const ticketsEl = document.getElementById('tickets');
+  const emptyEntries = document.getElementById('emptyEntries');
+  const entryCount = document.getElementById('entryCount');
+  const exportBtn = document.getElementById('exportBtn');
+  const exportHint = document.getElementById('exportHint');
+  const zoomOverlay = document.getElementById('zoomOverlay');
+  const zoomImg = document.getElementById('zoomImg');
+  const ticketPhotoInput = document.getElementById('ticketPhotoInput');
+  const propAddressEl = document.getElementById('propAddress');
+  const inspectorEl = document.getElementById('inspectorName');
+  const zipBtn = document.getElementById('zipBtn');
+  const emailBtn = document.getElementById('emailBtn');
+  const roomIndicator = document.getElementById('roomIndicator');
+  const roomIndicatorValue = document.getElementById('roomIndicatorValue');
+
+  const ROOM_OPTIONS = ['Kitchen','Bathroom','Bedroom','Living Room','Basement','Exterior','Garage','Utility / Laundry'];
+  const TAKE_TRIGGERS = ['take photo','take a photo'];
+
+  let stream = null;
+  let recognition = null;
+  let recognizing = false;
+  let noteBuffer = "";
+  let entries = [];
+  let entrySeq = 0;
+  let currentRoom = 'Unspecified';
+  let pendingEstimate = null;
+  let wakeLock = null;
+  let hasUnsavedChanges = false;
+
+  const STORAGE_KEY = 'fieldlog:session:v1';
+
+  // Local, on-device only — this file runs as its own hosted page (not inside
+  // Claude's artifact preview), so plain localStorage works normally here and
+  // survives a reload, a crash, or the phone locking mid-walkthrough.
+  function persistSession(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        propAddress: propAddressEl.value,
+        inspector: inspectorEl.value,
+        entries: entries,
+        entrySeq: entrySeq
+      }));
+    }catch(e){ /* storage unavailable or full — session still works in-memory */ }
+  }
+
+  function clearPersistedSession(){
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  }
+
+  function tryRestoreSession(){
+    let raw;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ return; }
+    if(!raw) return;
+    let data;
+    try{ data = JSON.parse(raw); }catch(e){ clearPersistedSession(); return; }
+    if(!data || !Array.isArray(data.entries) || !data.entries.length) return;
+    const n = data.entries.length;
+    const resume = confirm('A previous unsaved session was found with ' + n + ' captured entr' + (n===1?'y':'ies') + '. Resume it?');
+    if(resume){
+      entries = data.entries;
+      entrySeq = data.entrySeq || entries.length;
+      propAddressEl.value = data.propAddress || '';
+      inspectorEl.value = data.inspector || '';
+      renderEntries();
+    } else {
+      clearPersistedSession();
+    }
+  }
+
+  function updateRoomIndicator(){
+    roomIndicatorValue.textContent = currentRoom;
+  }
+  roomIndicator.addEventListener('click', () => {
+    const name = prompt('Set current room:', currentRoom);
+    if(name && name.trim()){
+      currentRoom = titleCase(name.trim());
+      updateRoomIndicator();
+    }
+  });
+  updateRoomIndicator();
+
+  function setStatus(mode, label){
+    statusText.textContent = label;
+    statusPill.classList.toggle('live', mode === 'live');
+  }
+
+  function updateExportState(){
+    const has = entries.length > 0;
+    exportBtn.disabled = !has;
+    zipBtn.disabled = !has;
+    emailBtn.disabled = !has;
+    undoBtn.disabled = !has;
+    exportHint.textContent = has ? entries.length + ' entr' + (entries.length===1?'y':'ies') + ' ready to export' : 'Capture at least one entry to enable export';
+    hasUnsavedChanges = has;
+    persistSession();
+  }
+
+  // ---------- Screen wake lock (keeps the screen on during a session) ----------
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    }catch(e){ /* not supported / denied — session still works, screen may just time out */ }
+  }
+  function releaseWakeLock(){
+    if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && recognizing && !wakeLock){
+      requestWakeLock();
+    }
+  });
+
+  // ---------- Camera ----------
+  async function startCamera(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:960} },
+        audio: false
+      });
+      video.srcObject = stream;
+      stageEmpty.style.display = 'none';
+      triggerBanner.style.display = 'flex';
+      manualBtn.disabled = false;
+      return true;
+    }catch(err){
+      stageEmpty.innerHTML = '<p style="color:var(--red)">Camera access was blocked or unavailable.<br>Check permissions and reload.</p>';
+      return false;
+    }
+  }
+
+  function stopCamera(){
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    video.srcObject = null;
+    stageEmpty.style.display = 'flex';
+    stageEmpty.innerHTML = '<p>Session ended. Start a new session to resume.</p>';
+    triggerBanner.style.display = 'none';
+    manualBtn.disabled = true;
+  }
+
+  // ---------- Speech recognition ----------
+  const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function startRecognition(){
+    if(!SpeechRecognitionImpl){
+      interimLine.textContent = 'Voice recognition isn\'t supported in this browser — type your note above, then tap Take Photo.';
+      interimLine.style.color = 'var(--red)';
+      interimLine.style.display = 'block';
+      return;
+    }
+    recognition = new SpeechRecognitionImpl();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      for(let i = event.resultIndex; i < event.results.length; i++){
+        const res = event.results[i];
+        const text = res[0].transcript;
+        if(res.isFinal){
+          processFinalChunk(text);
+        } else {
+          interim += text;
+        }
+      }
+      renderTranscript(interim);
+    };
+
+    recognition.onend = () => {
+      if(recognizing){
+        try{ recognition.start(); }catch(e){ /* already starting */ }
+      }
+    };
+
+    recognition.onerror = (e) => {
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        setStatus('idle','Mic blocked');
+        recognizing = false;
+      }
+      // 'no-speech' and similar are transient — onend will restart it
+    };
+
+    recognizing = true;
+    try{ recognition.start(); }catch(e){}
+    setStatus('live','Listening');
+  }
+
+  function stopRecognition(){
+    recognizing = false;
+    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    setStatus('idle','Idle');
+  }
+
+  function titleCase(s){
+    return s.split(/\s+/).map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w).join(' ');
+  }
+
+  function normWord(w){
+    return w.toLowerCase().replace(/[^\w']/g, '');
+  }
+
+  // Mobile Chrome speech recognition frequently re-fires growing/overlapping
+  // "final" results for the same utterance. This merges a new chunk into the
+  // buffer by trimming whatever prefix overlap already exists, instead of
+  // blindly concatenating (which caused the "please please please see..." bug).
+  function mergeOverlap(buffer, incoming){
+    const bufWords = buffer.trim() ? buffer.trim().split(/\s+/) : [];
+    const incWords = incoming.trim() ? incoming.trim().split(/\s+/) : [];
+    if(!incWords.length) return buffer;
+    const maxK = Math.min(bufWords.length, incWords.length);
+    let overlap = 0;
+    for(let k = maxK; k > 0; k--){
+      const tail = bufWords.slice(bufWords.length - k).map(normWord).join(' ');
+      const head = incWords.slice(0, k).map(normWord).join(' ');
+      if(tail === head && tail.length){ overlap = k; break; }
+    }
+    const newWords = incWords.slice(overlap);
+    if(!newWords.length) return buffer;
+    return buffer ? (buffer + ' ' + newWords.join(' ')) : newWords.join(' ');
+  }
+
+  function collapseRepeats(text){
+    // collapse immediately-repeated words ("please please please" -> "please")
+    let out = text.replace(/\b([a-z']+)(\s+\1\b)+/gi, '$1');
+    // tidy stray duplicate punctuation left behind by dictation pauses
+    out = out.replace(/(,\s*)+,/g, ',').replace(/\s+,/g, ',').replace(/,(?!\s|$)/g, ', ');
+    return out.trim();
+  }
+
+  function processFinalChunk(text){
+    const clean = text.trim();
+    if(!clean) return;
+    noteBuffer = mergeOverlap(noteBuffer, clean);
+    noteBuffer = collapseRepeats(noteBuffer);
+    processPendingTriggers();
+  }
+
+  // Repeatedly scans the accumulated buffer for whichever trigger phrase
+  // occurs earliest — "take photo" or "new room [name]" — so a trigger split
+  // across two separate recognition results still gets caught once merged.
+  function processPendingTriggers(){
+    let changed = true;
+    while(changed){
+      changed = false;
+      const lower = noteBuffer.toLowerCase();
+
+      let bestIdx = -1, bestLen = 0, bestType = null;
+      TAKE_TRIGGERS.forEach(t => {
+        const i = lower.indexOf(t);
+        if(i !== -1 && (bestIdx === -1 || i < bestIdx)){ bestIdx = i; bestLen = t.length; bestType = 'take'; }
+      });
+      const roomMatch = lower.match(/\bnew room\b/);
+      if(roomMatch && (bestIdx === -1 || roomMatch.index < bestIdx)){
+        bestIdx = roomMatch.index; bestLen = roomMatch[0].length; bestType = 'room';
+      }
+      const scratchMatch = lower.match(/\bscratch that\b/);
+      if(scratchMatch && (bestIdx === -1 || scratchMatch.index < bestIdx)){
+        bestIdx = scratchMatch.index; bestLen = scratchMatch[0].length; bestType = 'scratch';
+      }
+      const estimateMatch = lower.match(/\bestimate\b/);
+      if(estimateMatch && (bestIdx === -1 || estimateMatch.index < bestIdx)){
+        bestIdx = estimateMatch.index; bestLen = estimateMatch[0].length; bestType = 'estimate';
+      }
+
+      if(bestIdx === -1) break;
+
+      const before = noteBuffer.slice(0, bestIdx).trim();
+      const after = noteBuffer.slice(bestIdx + bestLen).trim();
+
+      if(bestType === 'take'){
+        capturePhoto(before);
+        noteBuffer = after;
+        changed = true;
+      } else if(bestType === 'scratch'){
+        // Discard everything said so far for the note in progress (both
+        // the text before the trigger and the trigger phrase itself), plus
+        // any estimate already mentioned for it.
+        noteBuffer = after;
+        pendingEstimate = null;
+        changed = true;
+        flashClear();
+      } else if(bestType === 'estimate'){
+        // Parse a price immediately following "estimate", e.g.
+        // "estimate 250", "estimate $250", "estimate 250 dollars".
+        const m = after.match(/^\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:dollars?|bucks)?/i);
+        let consumed = 0;
+        if(m){
+          const amount = parseFloat(m[1].replace(/,/g, ''));
+          if(!isNaN(amount)){
+            pendingEstimate = amount;
+            consumed = m[0].length;
+          }
+        }
+        const remainderAfterEstimate = after.slice(consumed).trim();
+        noteBuffer = (before ? before + ' ' : '') + remainderAfterEstimate;
+        noteBuffer = noteBuffer.trim();
+        changed = true;
+      } else if(bestType === 'room'){
+        const words = after.split(/\s+/).filter(Boolean);
+        const roomWords = [];
+        for(let i = 0; i < Math.min(3, words.length); i++){
+          const remainder = words.slice(i).join(' ').toLowerCase();
+          if(TAKE_TRIGGERS.some(t => remainder.startsWith(t))) break;
+          roomWords.push(words[i]);
+        }
+        const roomName = roomWords.join(' ').replace(/[,.]$/, '').trim();
+        if(roomName){
+          currentRoom = titleCase(roomName);
+          updateRoomIndicator();
+        }
+        const remainderAfterRoom = words.slice(roomWords.length).join(' ').trim();
+        noteBuffer = (before ? before + ' ' : '') + remainderAfterRoom;
+        noteBuffer = noteBuffer.trim();
+        changed = true;
+      }
+    }
+  }
+
+  function flashClear(){
+    noteInput.classList.remove('cleared'); void noteInput.offsetWidth; noteInput.classList.add('cleared');
+  }
+
+  function renderTranscript(interim){
+    // noteInput is the editable source of truth for the note-in-progress —
+    // keep its value in sync with the finalized buffer without stomping on
+    // whatever the user is actively typing (only overwrite if it's stale).
+    if(noteInput.value !== noteBuffer){
+      noteInput.value = noteBuffer;
+    }
+    if(interim){
+      interimLine.textContent = 'Hearing: ' + interim;
+      interimLine.style.display = 'block';
+    } else {
+      interimLine.style.display = 'none';
+    }
+  }
+
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ---------- Capture ----------
+  function capturePhoto(note){
+    if(!stream){ return; }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 960;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+    flash.classList.remove('flash'); void flash.offsetWidth; flash.classList.add('flash');
+
+    entrySeq += 1;
+    const entry = {
+      id: entrySeq,
+      photo: dataUrl,
+      note: note || "",
+      room: currentRoom || 'Unspecified',
+      estimate: pendingEstimate,
+      _w: canvas.width,
+      _h: canvas.height
+    };
+    pendingEstimate = null;
+    entries.push(entry);
+    renderEntries();
+    renderTranscript('');
+  }
+
+  // A line item with no photo attached — same "finalize this note, start
+  // the next one" behavior as capturePhoto, just without the camera step.
+  function captureNoteOnly(note){
+    const trimmed = (note || '').trim();
+    if(!trimmed){
+      alert('Type a note above before tapping New Line Item.');
+      return;
+    }
+    entrySeq += 1;
+    const entry = {
+      id: entrySeq,
+      photo: null,
+      note: trimmed,
+      room: currentRoom || 'Unspecified',
+      estimate: pendingEstimate,
+      _w: 0,
+      _h: 0
+    };
+    pendingEstimate = null;
+    entries.push(entry);
+    renderEntries();
+    noteBuffer = "";
+    renderTranscript('');
+  }
+
+  noteInput.addEventListener('input', () => {
+    noteBuffer = noteInput.value;
+  });
+
+  manualBtn.addEventListener('click', () => capturePhoto(noteInput.value.trim()));
+  newLineItemBtn.addEventListener('click', () => captureNoteOnly(noteInput.value.trim()));
+
+  undoBtn.addEventListener('click', () => {
+    if(!entries.length) return;
+    const last = entries[entries.length - 1];
+    if(!confirm('Remove the most recent capture (Item ' + String(entries.length).padStart(2,'0') + ', ' + (last.room || 'Unspecified') + ')?')) return;
+    entries.pop();
+    renderEntries();
+  });
+
+  propAddressEl.addEventListener('input', persistSession);
+  inspectorEl.addEventListener('input', persistSession);
+
+  function resetSession(force){
+    const hasData = entries.length > 0 || propAddressEl.value.trim() || inspectorEl.value.trim();
+    if(hasData && !force){
+      const n = entries.length;
+      const ok = confirm('Start a new session? This clears all ' + n + ' captured entr' + (n===1?'y':'ies') + ' and resets the property/inspector fields.');
+      if(!ok) return;
+    }
+    entries = [];
+    entrySeq = 0;
+    noteBuffer = "";
+    currentRoom = 'Unspecified';
+    updateRoomIndicator();
+    propAddressEl.value = '';
+    inspectorEl.value = '';
+    hasUnsavedChanges = false;
+    clearPersistedSession();
+    renderEntries();
+    renderTranscript('');
+  }
+  newSessionBtn.addEventListener('click', () => resetSession(false));
+
+  // ---------- Entries UI ----------
+  function renderEntries(){
+    emptyEntries.style.display = entries.length ? 'none' : 'block';
+    entryCount.textContent = entries.length;
+    ticketsEl.innerHTML = '';
+    entries.forEach((entry, i) => {
+      const ticket = document.createElement('div');
+      ticket.className = 'ticket';
+      const roomOptionsHtml = ROOM_OPTIONS.map(r =>
+        `<option value="${escapeHtml(r)}"${entry.room===r?' selected':''}>${escapeHtml(r)}</option>`
+      ).join('');
+      const customSelected = !ROOM_OPTIONS.includes(entry.room);
+      const photoHtml = entry.photo
+        ? `<div class="ticket-photo" data-idx="${i}"><img src="${entry.photo}" alt="Capture ${i+1}"></div>`
+        : `<div class="ticket-photo ticket-photo-none" data-idx="${i}">No Photo</div>`;
+      ticket.innerHTML = `
+        <div class="ticket-stub">${String(i+1).padStart(2,'0')}</div>
+        ${photoHtml}
+        <div class="ticket-body">
+          <div class="ticket-meta">
+            <select class="ticket-room" data-idx="${i}">
+              ${roomOptionsHtml}
+              <option value="__custom__"${customSelected?' selected':''}>${customSelected ? escapeHtml(entry.room) : 'Other…'}</option>
+            </select>
+            <div class="ticket-estimate">
+              <span>Est. $</span>
+              <input class="ticket-estimate-input" data-idx="${i}" type="number" step="0.01" min="0"
+                placeholder="0.00" value="${typeof entry.estimate === 'number' && !isNaN(entry.estimate) ? entry.estimate : ''}">
+            </div>
+          </div>
+          <textarea class="ticket-note" data-idx="${i}" placeholder="No note captured — tap to type one">${escapeHtml(entry.note)}</textarea>
+          <div class="ticket-actions">
+            <button class="ticket-photo-btn" data-idx="${i}">${entry.photo ? 'Replace Photo' : 'Add Photo'}</button>
+            <button class="ticket-del" data-idx="${i}">Remove</button>
+          </div>
+        </div>
+      `;
+      ticketsEl.appendChild(ticket);
+    });
+
+    ticketsEl.querySelectorAll('.ticket-note').forEach(el => {
+      el.addEventListener('input', (e) => {
+        entries[+e.target.dataset.idx].note = e.target.value;
+        persistSession();
+      });
+    });
+    ticketsEl.querySelectorAll('.ticket-estimate-input').forEach(el => {
+      el.addEventListener('input', (e) => {
+        const idx = +e.target.dataset.idx;
+        const val = parseFloat(e.target.value);
+        entries[idx].estimate = (e.target.value.trim() === '' || isNaN(val)) ? null : val;
+        persistSession();
+      });
+    });
+    ticketsEl.querySelectorAll('.ticket-room').forEach(el => {
+      el.addEventListener('change', (e) => {
+        const idx = +e.target.dataset.idx;
+        if(e.target.value === '__custom__'){
+          const name = prompt('Room name:', entries[idx].room) || entries[idx].room;
+          entries[idx].room = name.trim() || 'Other';
+          renderEntries();
+        } else {
+          entries[idx].room = e.target.value;
+          persistSession();
+        }
+      });
+    });
+    ticketsEl.querySelectorAll('.ticket-del').forEach(el => {
+      el.addEventListener('click', (e) => {
+        entries.splice(+e.target.dataset.idx, 1);
+        renderEntries();
+        updateExportState();
+      });
+    });
+    ticketsEl.querySelectorAll('.ticket-photo').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const idx = +e.currentTarget.dataset.idx;
+        if(!entries[idx].photo) return;
+        zoomImg.src = entries[idx].photo;
+        zoomOverlay.classList.add('open');
+      });
+    });
+    ticketsEl.querySelectorAll('.ticket-photo-btn').forEach(el => {
+      el.addEventListener('click', (e) => {
+        pendingPhotoTargetIdx = +e.target.dataset.idx;
+        ticketPhotoInput.value = '';
+        ticketPhotoInput.click();
+      });
+    });
+
+    updateExportState();
+  }
+
+  zoomOverlay.addEventListener('click', () => zoomOverlay.classList.remove('open'));
+
+  // Attaching/replacing a photo on an existing line item uses the device's
+  // normal photo picker/camera — independent of whether a live session is
+  // running, since it doesn't touch the in-page video stream.
+  let pendingPhotoTargetIdx = null;
+  ticketPhotoInput.addEventListener('change', (e) => {
+    const idx = pendingPhotoTargetIdx;
+    const file = e.target.files && e.target.files[0];
+    pendingPhotoTargetIdx = null;
+    if(idx === null || idx === undefined || !file || !entries[idx]) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        entries[idx].photo = canvas.toDataURL('image/jpeg', 0.85);
+        entries[idx]._w = canvas.width;
+        entries[idx]._h = canvas.height;
+        renderEntries();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ---------- Session control ----------
+  startBtn.addEventListener('click', async () => {
+    startBtn.disabled = true;
+    const ok = await startCamera();
+    if(ok){
+      startRecognition();
+      requestWakeLock();
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'flex';
+    }
+    startBtn.disabled = false;
+  });
+
+  stopBtn.addEventListener('click', () => {
+    if(hasUnsavedChanges && entries.length){
+      const n = entries.length;
+      const ok = confirm('You have ' + n + ' captured entr' + (n===1?'y':'ies') + ' not yet exported. End the session anyway?');
+      if(!ok) return;
+    }
+    stopRecognition();
+    stopCamera();
+    releaseWakeLock();
+    stopBtn.style.display = 'none';
+    startBtn.style.display = 'flex';
+    setStatus('idle','Idle');
+  });
+
+  window.addEventListener('beforeunload', (e) => {
+    if(hasUnsavedChanges && entries.length){
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // ---------- ZIP photo export (medium resolution, individual JPEGs) ----------
+  function resizeToMedium(dataUrl, maxDim){
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(Math.max(w, h) > maxDim){
+          const scale = maxDim / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+      };
+      img.onerror = () => resolve(dataUrl.split(',')[1]);
+      img.src = dataUrl;
+    });
+  }
+
+  function slugify(s){
+    return (s || 'unspecified').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'unspecified';
+  }
+
+  zipBtn.addEventListener('click', async () => {
+    const withPhotos = entries.filter(e => e.photo);
+    if(!withPhotos.length){
+      alert('No photos to download — all captured entries so far are note-only line items.');
+      return;
+    }
+    zipBtn.disabled = true;
+    const originalLabel = zipBtn.textContent;
+    zipBtn.textContent = 'Preparing…';
+    try{
+      const zip = new JSZip();
+      for(let i = 0; i < withPhotos.length; i++){
+        const entry = withPhotos[i];
+        const base64 = await resizeToMedium(entry.photo, 1280);
+        const fname = 'item-' + String(i + 1).padStart(2, '0') + '-' + slugify(entry.room) + '.jpg';
+        zip.file(fname, base64, { base64: true });
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'photos-' + slugify(propAddressEl.value.trim() || 'property') + '-' + Date.now() + '.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      hasUnsavedChanges = false;
+    } finally {
+      zipBtn.textContent = originalLabel;
+      zipBtn.disabled = !entries.length;
+    }
+  });
+
+  // ---------- PDF export ----------
+  function buildReportPdf(){
+    if(!entries.length) return null;
+    const reportEntries = entries.filter(e => e.note && e.note.trim());
+    if(!reportEntries.length){
+      alert('None of the captured entries have a note yet — add notes on at least one entry before generating the report.');
+      return null;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'pt', format:'letter' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 40;
+
+    const address = propAddressEl.value.trim() || 'Address not specified';
+
+    // Group entries by room, preserving the order each room first appears in
+    const roomOrder = [];
+    const grouped = {};
+    reportEntries.forEach(entry => {
+      const room = entry.room || 'Unspecified';
+      if(!grouped[room]){ grouped[room] = []; roomOrder.push(room); }
+      grouped[room].push(entry);
+    });
+
+    // Assign a single global item number per entry, shared between the
+    // summary list and the photo detail pages so they cross-reference.
+    const numMap = new Map();
+    let n = 0;
+    roomOrder.forEach(room => { grouped[room].forEach(entry => { n += 1; numMap.set(entry, n); }); });
+
+    // ---- Logo + cover header ----
+    const logoW = 130;
+    const logoH = logoW * LOGO_RATIO;
+    const logoX = (pageW - logoW) / 2;
+    try{ doc.addImage(LOGO_DATA_URL, 'JPEG', logoX, 28, logoW, logoH); }catch(e){}
+
+    const headerTop = 28 + logoH + 26;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(18);
+    doc.setTextColor(0,0,0);
+    doc.text('Maintenance Report', margin, headerTop);
+    doc.setDrawColor(230,230,230);
+    doc.line(0, headerTop + 12, pageW, headerTop + 12);
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica','normal');
+    doc.setTextColor(90,90,90);
+    doc.text('Property', margin, headerTop + 34);
+    doc.text('Total Entries', pageW/2, headerTop + 34);
+    doc.setFontSize(12.5);
+    doc.setTextColor(20,20,20);
+    doc.setFont('helvetica','bold');
+    doc.text(address, margin, headerTop + 49);
+    doc.text(String(reportEntries.length), pageW/2, headerTop + 49);
+
+    let y = headerTop + 84;
+
+    // ---- Summary section: line items only, no photos ----
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(0,0,0);
+    doc.text('Work Order Line Items:', margin, y);
+    y += 20;
+
+    const contentW = pageW - margin*2;
+
+    roomOrder.forEach(room => {
+      const roomEntries = grouped[room];
+      if(y + 26 > pageH - margin){ doc.addPage(); y = margin; }
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(0,0,0);
+      doc.text(room.toUpperCase(), margin, y + 10);
+      doc.setDrawColor(210,210,210);
+      doc.line(0, y + 14, pageW, y + 14);
+      y += 14 + 8;
+
+      roomEntries.forEach(entry => {
+        const itemNum = numMap.get(entry);
+        const noteText = entry.note && entry.note.trim() ? entry.note.trim() : '(No note recorded)';
+        const hasEstimate = typeof entry.estimate === 'number' && !isNaN(entry.estimate);
+        const estText = hasEstimate ? '  (Est. $' + entry.estimate.toFixed(2) + ')' : '';
+        const label = 'Item ' + String(itemNum).padStart(2,'0') + ' — ' + noteText + estText;
+        const lines = doc.splitTextToSize(label, contentW - 10);
+        const blockH = lines.length * 9.5 + 2;
+        if(y + blockH > pageH - margin){ doc.addPage(); y = margin; }
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(7.6);
+        doc.setTextColor(40,40,40);
+        doc.text(lines, margin + 6, y + 7);
+        y += blockH;
+      });
+      y += 10;
+    });
+
+    // ---- Total estimated cost across all line items ----
+    const totalEstimate = reportEntries.reduce((sum, e) =>
+      sum + (typeof e.estimate === 'number' && !isNaN(e.estimate) ? e.estimate : 0), 0);
+    const anyEstimates = reportEntries.some(e => typeof e.estimate === 'number' && !isNaN(e.estimate));
+    if(anyEstimates){
+      const totalBlockH = 30;
+      if(y + totalBlockH > pageH - margin){ doc.addPage(); y = margin; }
+      y += 4;
+      doc.setDrawColor(0,0,0);
+      doc.line(pageW - margin - 200, y, pageW - margin, y);
+      y += 16;
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(11);
+      doc.setTextColor(0,0,0);
+      doc.text('Total Estimated Cost:', pageW - margin - 200, y);
+      doc.text('$' + totalEstimate.toFixed(2), pageW - margin, y, { align: 'right' });
+      y += 20;
+    }
+
+    // ---- Photo detail section: 4 photos per page, in quarters, grouped by room ----
+    const gutter = 14;
+    const bannerH = 14;
+
+    roomOrder.forEach(room => {
+      const roomEntries = grouped[room].filter(e => e.photo);
+      if(!roomEntries.length) return;
+      let i = 0;
+      while(i < roomEntries.length){
+        doc.addPage();
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11);
+        doc.setTextColor(0,0,0);
+        doc.text(room.toUpperCase() + ' — PHOTO DETAIL', margin, margin + 10);
+        doc.setDrawColor(210,210,210);
+        doc.line(0, margin + bannerH, pageW, margin + bannerH);
+
+        const gridTop = margin + bannerH + 12;
+        const cellW = (contentW - gutter) / 2;
+        const cellH = (pageH - margin - gridTop - gutter) / 2;
+        const captionH = 32;
+
+        for(let q = 0; q < 4 && i < roomEntries.length; q++, i++){
+          const entry = roomEntries[i];
+          const col = q % 2, row = Math.floor(q / 2);
+          const cellX = margin + col * (cellW + gutter);
+          const cellY = gridTop + row * (cellH + gutter);
+
+          let ratio = (entry._w && entry._h) ? entry._h / entry._w : 0.75;
+          const maxImgH = cellH - captionH;
+          let imgW = cellW, imgH = imgW * ratio;
+          if(imgH > maxImgH){ imgH = maxImgH; imgW = imgH / ratio; }
+          const imgX = cellX + (cellW - imgW) / 2;
+
+          try{ doc.addImage(entry.photo, 'JPEG', imgX, cellY, imgW, imgH); }catch(e){}
+
+          const capY = cellY + maxImgH + 13;
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(9);
+          doc.setTextColor(20,20,20);
+          doc.text('Item ' + String(numMap.get(entry)).padStart(2,'0'), cellX, capY);
+
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(70,70,70);
+          const noteText = entry.note && entry.note.trim() ? entry.note.trim() : '(No note recorded)';
+          const lines = doc.splitTextToSize(noteText, cellW).slice(0, 2);
+          doc.text(lines, cellX, capY + 10);
+        }
+      }
+    });
+
+    // ---- Footer on every page: timestamp, inspector, company contact ----
+    const generatedStr = new Date().toLocaleString();
+    const inspector = inspectorEl.value.trim() || 'Not specified';
+    const totalPages = doc.internal.getNumberOfPages();
+    for(let p = 1; p <= totalPages; p++){
+      doc.setPage(p);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(7);
+      doc.setTextColor(170,170,170);
+      doc.text('Generated ' + generatedStr + '   •   Inspector: ' + inspector, pageW/2, pageH - 22, { align:'center' });
+      doc.setTextColor(190,190,190);
+      doc.text('Repair My Rentals   •   www.rmrneo.com   •   216-245-2901   •   info@rmrneo.com', pageW/2, pageH - 12, { align:'center' });
+    }
+
+    const fname = 'maintenance-report-' + slugify(address) + '-' + Date.now() + '.pdf';
+    return { doc, fname, address };
+  }
+
+  exportBtn.addEventListener('click', () => {
+    const result = buildReportPdf();
+    if(!result) return;
+    result.doc.save(result.fname);
+    hasUnsavedChanges = false;
+  });
+
+  const COMPANY_EMAIL = 'info@rmrneo.com';
+
+  emailBtn.addEventListener('click', async () => {
+    const result = buildReportPdf();
+    if(!result) return;
+    const { doc, fname, address } = result;
+    const subject = 'Maintenance Report — ' + address;
+    const body = 'Maintenance report for ' + address + ' attached.\n\n' +
+      '(If the PDF isn\'t attached yet, add it from your Downloads folder — it was just saved as ' + fname + '.)';
+
+    const blob = doc.output('blob');
+    const file = new File([blob], fname, { type: 'application/pdf' });
+
+    // Best case: the device's native share sheet can attach the PDF directly
+    // to whatever mail app is chosen (Gmail, Mail, Outlook, etc).
+    const canShareFile = navigator.canShare && navigator.canShare({ files: [file] });
+    if(navigator.share && canShareFile){
+      try{
+        // Copy the recipient address so it's a quick paste into the To: field —
+        // the Web Share API can hand off a file, but it can't preset a recipient.
+        try{ await navigator.clipboard.writeText(COMPANY_EMAIL); }catch(e){}
+        await navigator.share({
+          files: [file],
+          title: subject,
+          text: 'Send to ' + COMPANY_EMAIL + ' — address copied to your clipboard, paste into To:.\n\n' + body
+        });
+        hasUnsavedChanges = false;
+        return;
+      }catch(e){
+        if(e && e.name === 'AbortError') return; // user cancelled the share sheet
+        // fall through to the mailto fallback below
+      }
+    }
+
+    // Fallback for browsers without file-sharing support (e.g. desktop Chrome):
+    // download the PDF, then open a pre-addressed email draft to attach it to.
+    doc.save(fname);
+    hasUnsavedChanges = false;
+    const mailto = 'mailto:' + encodeURIComponent(COMPANY_EMAIL) +
+      '?subject=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(body);
+    alert('The PDF has been downloaded as "' + fname + '". Your email app will now open — attach that file before sending.');
+    window.location.href = mailto;
+  });
+
+  tryRestoreSession();
+  renderEntries();
+  updateExportState();
+  setStatus('idle','Idle');
+})();
+</script>
+</body>
+</html>
